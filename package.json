@@ -1,6 +1,6 @@
 {
   "name": "@smarttj/core",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "description": "Shared enums, constants and database schemas for SmartTJ ecosystem",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
