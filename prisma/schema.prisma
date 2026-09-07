@@ -785,13 +785,13 @@ enum BannerPosition {
 }
 
 model Banner {
-  id       String         @id @default(uuid(7))
-  title    String
-  message  String
-  url      String
-  position BannerPosition @default(MAIN)
-  image    String?
-  imageId  String?
+  id          String         @id @default(uuid(7))
+  title       String
+  description String
+  url         String
+  position    BannerPosition @default(MAIN)
+  image       String?
+  imageId     String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
