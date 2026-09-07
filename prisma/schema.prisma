@@ -42,9 +42,10 @@ model User {
   addresses       Address[]
   employee        Employee[]
   supportChats    SupportChat[]
-  operatorChats   SupportChat[]  @relation("AssignedOperator")
+  operatorChats   SupportChat[]    @relation("AssignedOperator")
   paymentAttempts PaymentAttempt[]
-  region          Region?        @relation(fields: [regionId], references: [id], onDelete: SetNull)
+  applications    Application[]
+  region          Region?          @relation(fields: [regionId], references: [id], onDelete: SetNull)
   partner         Partner?
   cart            Cart?
 
@@ -773,4 +774,46 @@ model Report {
   updatedAt DateTime @updatedAt
 
   @@unique([year, month])
+}
+
+enum BannerPosition {
+  MAIN // Главный баннер на главной странице
+  CATEGORY // Баннер в категории товаров
+  PRODUCT // Баннер на странице товара
+  BRAND // Баннер на странице бренда
+  SEARCH // Баннер на поиске
+}
+
+model Banner {
+  id       String         @id @default(uuid(7))
+  title    String
+  message  String
+  url      String
+  position BannerPosition @default(MAIN)
+  image    String?
+  imageId  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum ApplicationStatus {
+  NEW // Новая заявка
+  IN_PROGRESS // В процессе обработки
+  COMPLETED // Обработана
+  REJECTED // Отклонена
+}
+
+model Application {
+  id      String            @id @default(uuid(7))
+  name    String
+  phone   String
+  message String?
+  status  ApplicationStatus @default(NEW)
+  userId  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User? @relation(fields: [userId], references: [id])
 }
