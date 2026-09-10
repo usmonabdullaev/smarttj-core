@@ -817,3 +817,17 @@ model Application {
 
   user User? @relation(fields: [userId], references: [id])
 }
+
+model Blog {
+  id          String @id @default(uuid(7))
+  slug        String @unique
+  title       String
+  content     String
+  banner      String
+  bannerId    String
+  tag         String
+  readingTime Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

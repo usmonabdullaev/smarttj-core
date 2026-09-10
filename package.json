@@ -23,7 +23,7 @@
     "clean": "rimraf dist",
     "build": "npm run clean && tsc",
     "prepare": "npm run build",
-    "prisma:migrate": "npx prisma migrate dev --name init --create-only"
+    "prisma:migrate": "npx prisma migrate dev --name init"
   },
   "publishConfig": {
     "access": "public"
