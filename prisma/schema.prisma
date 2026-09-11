@@ -7,11 +7,11 @@ datasource db {
 }
 
 enum UserRole {
-  SYSADMIN // Системный администратор, полный доступ ко всем функциям и данным
-  USER // Обычный пользователь, может просматривать и заказывать товары, управлять своим профилем
-  ADMIN // Администратор, может управлять товарами, заказами и пользователями
-  MODERATOR // Модератор, может управлять отзывами и поддержкой
-  PARTNER // Партнер, может управлять своими товарами и заказами
+  SYSADMIN         // Системный администратор, полный доступ ко всем функциям и данным
+  USER             // Обычный пользователь, может просматривать и заказывать товары, управлять своим профилем
+  ADMIN            // Администратор, может управлять товарами, заказами и пользователями
+  MODERATOR        // Модератор, может управлять отзывами и поддержкой
+  PARTNER          // Партнер, может управлять своими товарами и заказами
   PARTNER_EMPLOYEE // Работник партнера
 }
 
@@ -45,6 +45,7 @@ model User {
   operatorChats   SupportChat[]    @relation("AssignedOperator")
   paymentAttempts PaymentAttempt[]
   applications    Application[]
+  savedCards      SavedCard[]
   region          Region?          @relation(fields: [regionId], references: [id], onDelete: SetNull)
   partner         Partner?
   cart            Cart?
@@ -52,6 +53,7 @@ model User {
   @@unique([phone, role])
   @@unique([email, role])
   @@unique([googleId, role])
+  @@index([telegramId]) 
 }
 
 model Session {
@@ -85,14 +87,14 @@ model AuthOtp {
 }
 
 enum SmsLogPurpose {
-  REGISTER // Регистрация нового пользователя
-  LOGIN // Вход в аккаунт
+  REGISTER       // Регистрация нового пользователя
+  LOGIN          // Вход в аккаунт
   RESET_PASSWORD // Сброс пароля
 }
 
 enum SmsLogStatus {
-  NEW // In progress
-  SENT // Сообщение отправлено
+  NEW    // In progress
+  SENT   // Сообщение отправлено
   FAILED // Ошибка при отправке
 }
 
@@ -139,16 +141,22 @@ model Partner {
   address2       String?
   about          String?
   inn            String?
+  alifTerminalId String? // ID терминала партнера в Alif (для сплит-платежей Alif Marketplace)
+  bankName       String? // Название банка партнера (для выплат выручки)
+  bankAccount    String? // Расчетный счет (IBAN) партнера
+  bik            String? // БИК / МФО банка
+  cardAccount    String? // Номер карты для выплат (для самозанятых / ИП)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user     User      @relation(fields: [userId], references: [id])
-  products Product[]
+  user       User        @relation(fields: [userId], references: [id])
+  products   Product[]
+  orderItems OrderItem[] // Прямая связь с позициями заказов (для мгновенной статистики)
 }
 
 enum EmployeeStatus {
-  ACTIVE // Активный
+  ACTIVE      // Активный
   ON_VACATION // В отпуске
 }
 
@@ -510,16 +518,20 @@ model CartItem {
 }
 
 enum PaymentMethodType {
-  CASH // Наличные
-  CARD // Банковская карта
+  CASH   // Наличные
+  CARD   // Банковская карта
   WALLET // Кошелек пользователья
 }
 
 model PaymentMethod {
-  id       String            @id @default(uuid(7))
-  name     String
-  type     PaymentMethodType
-  isActive Boolean           @default(true)
+  id        String  @id @default(uuid(7))
+  code      String? @unique // Символьный код: "ALIF_KORTI_MILLI", "ALIF_WALLET", "CASH" (чтобы в коде не хардкодить UUID)
+  name      String
+  provider  String? // Провайдер метода: "ALIF", "CASH", "MANUAL"
+  icon      String? // URL логотипа способа оплаты (иконка кошелька, карты)
+  isActive  Boolean @default(true)
+
+  type      PaymentMethodType
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -564,6 +576,8 @@ model Order {
   totalPrice      Int
   comment         String?
   addressId       String?
+  paidAt          DateTime? // Время фактической успешной оплаты
+  cancelReason    String?   // Причина отмены заказа клиентом или администратором
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -576,6 +590,8 @@ model Order {
   paymentAttempts PaymentAttempt[]
 
   @@index([userId])
+  @@index([paymentStatus])
+  @@index([createdAt])
 }
 
 enum OrderItemDeliveryStatus {
@@ -594,19 +610,25 @@ model OrderItem {
   id               String                  @id @default(uuid(7))
   orderId          String
   productVariantId String?
+  partnerId        String?
   quantity         Int                     @default(1)
   price            Int
   deliveryStatus   OrderItemDeliveryStatus @default(NEW)
   warranty         Int?
   receivedAt       DateTime?
+  productTitle     String? // Название товара на момент оформления покупки
+  productImage     String? // Ссылка на превью фото товара на момент покупки
+  productSku       String? // Артикул варианта товара на момент покупки
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   order          Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
   productVariant ProductVariant? @relation(fields: [productVariantId], references: [id], onDelete: SetNull)
+  partner        Partner?        @relation(fields: [partnerId], references: [id], onDelete: SetNull)
 
   @@index([orderId])
+  @@index([partnerId])
 }
 
 enum NotificationType {
@@ -640,19 +662,25 @@ enum PaymentAttemptStatus {
 }
 
 model PaymentAttempt {
-  id         String @id @default(uuid(7))
-  userId     String
-  orderId    String
-  amount     Int
-  status     PaymentAttemptStatus @default(PENDING)
-  provider   String?
-  providerId String?
+  id           String @id @default(uuid(7))
+  userId       String
+  orderId      String
+  amount       Int
+  status       PaymentAttemptStatus @default(PENDING)
+  provider     String?
+  providerId   String?
+  paymentUrl   String? // Ссылка на оплату Alif (для повторного открытия пользователем)
+  errorMessage String? // Причина ошибки ("Недостаточно средств", "Банк отклонил операцию")
+  metadata     Json?   // Сырой ответ инициализации от Alif
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   user  User  @relation(fields: [userId], references: [id])
   order Order @relation(fields: [orderId], references: [id])
+
+  @@index([orderId])
+  @@index([userId])
 }
 
 enum TransactionStatus {
@@ -661,19 +689,42 @@ enum TransactionStatus {
 }
 
 model Transaction {
-  id         String            @id @default(uuid(7))
-  userId     String
-  orderId    String            @unique
-  amount     Int
-  status     TransactionStatus @default(SUCCESS)
-  provider   String?
-  providerId String?
+  id           String            @id @default(uuid(7))
+  userId       String
+  orderId      String            @unique
+  amount       Int
+  status       TransactionStatus @default(SUCCESS)
+  provider     String?
+  providerId   String?
+  paymentGate  String? // Способ оплаты ("korti_milli", "wallet", "salom", "cybersource")
+  payerAccount String? // Маска карты/счета ("622617******1234") для чека покупателю
+  payerPhone   String? // Телефон плательщика из шлюза
+  metadata     Json?   // Полный сырой payload от Alif Callback (RRN, auth code, hash)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   user  User  @relation(fields: [userId], references: [id])
   order Order @relation(fields: [orderId], references: [id])
+
+  @@index([userId])
+  @@index([providerId])
+}
+
+model SavedCard {
+  id        String  @id @default(uuid(7))
+  userId    String
+  cardToken String  // Токен карты от Alif (для списания)
+  cardMask  String  // Маскированный номер: "444455******1111"
+  cardType  String? // "korti_milli", "visa", "mastercard"
+  isDefault Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 enum SupportChatStatus {
@@ -683,9 +734,9 @@ enum SupportChatStatus {
 }
 
 enum SupportChatPriority {
-  LOW // Низкий приоритет, может обрабатываться позже
-  NORMAL // Обычный приоритет, обрабатывается в порядке очереди
-  HIGH // Высокий приоритет, требует быстрого реагирования
+  LOW      // Низкий приоритет, может обрабатываться позже
+  NORMAL   // Обычный приоритет, обрабатывается в порядке очереди
+  HIGH     // Высокий приоритет, требует быстрого реагирования
   CRITICAL // Критический приоритет, требует немедленного реагирования
 }
 
@@ -707,10 +758,10 @@ model SupportChat {
 }
 
 enum SupportMessageRole {
-  USER // Сообщение от пользователя
-  AI // Сообщение от искусственного интеллекта
+  USER     // Сообщение от пользователя
+  AI       // Сообщение от искусственного интеллекта
   OPERATOR // Сообщение от оператора поддержки
-  SYSTEM // Системное сообщение
+  SYSTEM   // Системное сообщение
 }
 
 model SupportMessage {
@@ -741,7 +792,7 @@ model SupportAIContext {
 
 enum SupportAttachmentType {
   IMAGE // Изображение (JPEG, PNG и т.д.)
-  FILE // Общий файл (PDF, DOCX и т.д.)
+  FILE  // Общий файл (PDF, DOCX и т.д.)
 }
 
 model SupportAttachment {
@@ -777,11 +828,11 @@ model Report {
 }
 
 enum BannerPosition {
-  MAIN // Главный баннер на главной странице
+  MAIN     // Главный баннер на главной странице
   CATEGORY // Баннер в категории товаров
-  PRODUCT // Баннер на странице товара
-  BRAND // Баннер на странице бренда
-  SEARCH // Баннер на поиске
+  PRODUCT  // Баннер на странице товара
+  BRAND    // Баннер на странице бренда
+  SEARCH   // Баннер на поиске
 }
 
 model Banner {
@@ -798,10 +849,10 @@ model Banner {
 }
 
 enum ApplicationStatus {
-  NEW // Новая заявка
+  NEW         // Новая заявка
   IN_PROGRESS // В процессе обработки
-  COMPLETED // Обработана
-  REJECTED // Отклонена
+  COMPLETED   // Обработана
+  REJECTED    // Отклонена
 }
 
 model Application {
