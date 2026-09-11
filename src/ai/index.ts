@@ -1,1 +1,1 @@
-export * from "./ai.enum";
+export * from "./ai.interface";
