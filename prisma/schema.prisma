@@ -293,7 +293,6 @@ model ProductVariant {
   stock     Int
   productId String
   code      Int     @unique @default(autoincrement()) @db.Integer
-  variantId String?
   label     String?
 
   createdAt DateTime @default(now())
@@ -306,8 +305,6 @@ model ProductVariant {
   priceHistory ProductPriceHistory[]
   attributes   ProductAttribute[]
   reviews      Review[]
-  variants     ProductVariant[]      @relation("VariantImageSource")
-  variant      ProductVariant?       @relation("VariantImageSource", fields: [variantId], references: [id], onDelete: SetNull)
 
   @@index([code])
   @@index([productId])
@@ -341,7 +338,7 @@ model Review {
 
   user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   product        Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
-  productVariant ProductVariant? @relation(fields: [productVariantId], references: [id])
+  productVariant ProductVariant? @relation(fields: [productVariantId], references: [id], onDelete: SetNull)
 
   @@index([productId])
 }
