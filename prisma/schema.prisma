@@ -43,6 +43,7 @@ model User {
   employee        Employee[]
   supportChats    SupportChat[]
   operatorChats   SupportChat[]    @relation("AssignedOperator")
+  payoutRequests  PayoutRequest[]  @relation("PayoutProcessor")
   paymentAttempts PaymentAttempt[]
   applications    Application[]
   savedCards      SavedCard[]
@@ -146,13 +147,15 @@ model Partner {
   bankAccount    String? // Расчетный счет (IBAN) партнера
   bik            String? // БИК / МФО банка
   cardAccount    String? // Номер карты для выплат (для самозанятых / ИП)
+  commissionRate Float   @default(5.0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user       User        @relation(fields: [userId], references: [id])
-  products   Product[]
-  orderItems OrderItem[] // Прямая связь с позициями заказов (для мгновенной статистики)
+  user           User           @relation(fields: [userId], references: [id])
+  products       Product[]
+  orderItems     OrderItem[]     // Прямая связь с позициями заказов (для мгновенной статистики)
+  payoutRequests PayoutRequest[]
 }
 
 enum EmployeeStatus {
@@ -284,6 +287,9 @@ model Product {
   @@index([brandId])
   @@index([modelId])
   @@index([regionId])
+  @@index([partnerId])
+  @@index([partnerId, status])
+  @@index([deletedAt])
 }
 
 model ProductVariant {
@@ -616,6 +622,9 @@ model OrderItem {
   productTitle     String? // Название товара на момент оформления покупки
   productImage     String? // Ссылка на превью фото товара на момент покупки
   productSku       String? // Артикул варианта товара на момент покупки
+  commissionRate   Float   @default(0.0) // Ставка комиссии на момент заказа (%)
+  commissionAmount Int     @default(0)   // Сумма комиссии площадки в дирамах/сомони
+  payoutAmount     Int     @default(0)   // Чистая сумма партнёра: (price * quantity) - commissionAmount
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -626,6 +635,43 @@ model OrderItem {
 
   @@index([orderId])
   @@index([partnerId])
+  @@index([partnerId, deliveryStatus])
+}
+
+enum PayoutStatus {
+  PENDING    // Заявка подана партнёром, ожидает проверки
+  PROCESSING // В процессе банковского перевода бухгалтерией
+  COMPLETED  // Успешно перечислено (с номером платёжного поручения)
+  REJECTED   // Отклонено администратором (с указанием причины)
+  CANCELLED  // Отменено партнёром до начала обработки
+}
+
+model PayoutRequest {
+  id                   String       @id @default(uuid(7))
+  partnerId            String
+  amount               Int          // Запрашиваемая сумма выплаты (в сомони или дирамах)
+  status               PayoutStatus @default(PENDING)
+  
+  // Снапшот реквизитов на момент подачи заявки (чтобы сохранить, куда отправлялись деньги, даже если партнёр изменит реквизиты в профиле позже)
+  payoutMethod         String       // "BANK_ACCOUNT" или "CARD"
+  requisitesSnapshot   Json         // { inn, bankName, bankAccount, bik, cardAccount }
+  
+  comment              String?      // Примечание партнёра к заявке
+  rejectReason         String?      // Причина отказа администратором (если REJECTED)
+  transactionReference String?      // Номер платёжного поручения из банка / выписки (при COMPLETED)
+
+  processedById String?      // ID администратора, обработавшего заявку
+  processedAt   DateTime?    // Дата и время обработки
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  partner     Partner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  processedBy User?   @relation("PayoutProcessor", fields: [processedById], references: [id], onDelete: SetNull)
+
+  @@index([partnerId])
+  @@index([status])
+  @@index([createdAt])
 }
 
 enum NotificationType {
