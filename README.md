@@ -9,7 +9,7 @@ git push --follow-tags
 
 ## Prisma
 
-- Generate migration
+- Generate migrations
 
 ```bash
 npm run prisma:migrate
