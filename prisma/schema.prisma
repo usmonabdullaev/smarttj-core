@@ -47,6 +47,7 @@ model User {
   paymentAttempts PaymentAttempt[]
   applications    Application[]
   savedCards      SavedCard[]
+  favorites       Favorite[]
   region          Region?          @relation(fields: [regionId], references: [id], onDelete: SetNull)
   partner         Partner?
   cart            Cart?
@@ -275,13 +276,14 @@ model Product {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  partner  Partner          @relation(fields: [partnerId], references: [id])
-  category Category?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  brand    Brand?           @relation(fields: [brandId], references: [id], onDelete: SetNull)
-  model    Model?           @relation(fields: [modelId], references: [id], onDelete: SetNull)
-  region   Region?          @relation(fields: [regionId], references: [id], onDelete: SetNull)
-  variants ProductVariant[]
-  reviews  Review[]
+  partner   Partner          @relation(fields: [partnerId], references: [id])
+  category  Category?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  brand     Brand?           @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  model     Model?           @relation(fields: [modelId], references: [id], onDelete: SetNull)
+  region    Region?          @relation(fields: [regionId], references: [id], onDelete: SetNull)
+  variants  ProductVariant[]
+  reviews   Review[]
+  favorites Favorite[]
 
   @@index([categoryId])
   @@index([brandId])
@@ -311,6 +313,7 @@ model ProductVariant {
   priceHistory ProductPriceHistory[]
   attributes   ProductAttribute[]
   reviews      Review[]
+  favorites    Favorite[]
 
   @@index([code])
   @@index([productId])
@@ -368,6 +371,23 @@ model Review {
   @@index([productId, status])  // Быстрая выборка опубликованных отзывов в карточке товара
   @@index([userId])             // Быстрая выборка отзывов в профиле пользователя
   @@index([orderId])
+}
+
+model Favorite {
+  id               String   @id @default(uuid(7))
+  userId           String
+  productId        String
+  productVariantId String?  // Опционально: если лайкнули конкретный вариант на странице
+
+  createdAt DateTime @default(now())
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product        Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productVariant ProductVariant? @relation(fields: [productVariantId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, productId])
+  @@index([userId])
+  @@index([productId])
 }
 
 model Category {
