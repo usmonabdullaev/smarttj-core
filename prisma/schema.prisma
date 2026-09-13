@@ -329,15 +329,32 @@ model ProductPriceHistory {
   @@index([variantId])
 }
 
+enum ReviewStatus {
+  PENDING   // На модерации (если включена премодерация)
+  PUBLISHED // Опубликован (виден всем)
+  REJECTED  // Отклонен модератором (мат, спам)
+  HIDDEN    // Скрыт админом
+}
+
 model Review {
-  id               String  @id @default(uuid(7))
+  id               String       @id @default(uuid(7))
   userId           String
   productId        String
   productVariantId String?
-  rating           Int
-  advantages       String  @default("")
-  flaws            String  @default("")
-  comment          String
+  orderId          String?      // Привязка к заказу (подтверждение покупки)
+
+  rating           Int          // Оценка от 1 до 5
+  advantages       String?      @default("") // Достоинства
+  flaws            String?      @default("") // Недостатки
+  comment          String?      @default("") // Основной текст отзыва
+  images           String[]     @default([]) // Фотографии товара от покупателя
+  isVerified       Boolean      @default(false) // Плашка "Реальный покупатель"
+  status           ReviewStatus @default(PENDING) // Статус публикации
+  // Ответ партнера/продавца на отзыв
+  replyComment     String?
+  repliedAt        DateTime?
+  // Оценка полезности отзыва другими покупателями (по желанию)
+  likesCount       Int          @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -345,8 +362,12 @@ model Review {
   user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   product        Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
   productVariant ProductVariant? @relation(fields: [productVariantId], references: [id], onDelete: SetNull)
+  order          Order?          @relation(fields: [orderId], references: [id], onDelete: SetNull)
 
-  @@index([productId])
+  @@unique([userId, productId]) // 1 пользователь может оставить только 1 отзыв на конкретный товар
+  @@index([productId, status])  // Быстрая выборка опубликованных отзывов в карточке товара
+  @@index([userId])             // Быстрая выборка отзывов в профиле пользователя
+  @@index([orderId])
 }
 
 model Category {
@@ -591,6 +612,7 @@ model Order {
   items           OrderItem[]
   transaction     Transaction?
   paymentAttempts PaymentAttempt[]
+  reviews         Review[]
 
   @@index([userId])
   @@index([paymentStatus])
