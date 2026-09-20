@@ -333,9 +333,10 @@ model ProductPriceHistory {
 }
 
 enum ReviewStatus {
-  PENDING   // На модерации (если включена премодерация)
+  AUTO_MODERATION // В автоматическом модерации
+  MANUAL_MODERATION // В ручном модерации
   PUBLISHED // Опубликован (виден всем)
-  REJECTED  // Отклонен модератором (мат, спам)
+  REJECTED  // Отклонен модератором (спам)
   HIDDEN    // Скрыт админом
 }
 
@@ -345,19 +346,15 @@ model Review {
   productId        String
   productVariantId String?
   orderId          String?      // Привязка к заказу (подтверждение покупки)
-
   rating           Int          // Оценка от 1 до 5
   advantages       String?      @default("") // Достоинства
   flaws            String?      @default("") // Недостатки
   comment          String?      @default("") // Основной текст отзыва
-  images           String[]     @default([]) // Фотографии товара от покупателя
   isVerified       Boolean      @default(false) // Плашка "Реальный покупатель"
-  status           ReviewStatus @default(PENDING) // Статус публикации
+  status           ReviewStatus @default(AUTO_MODERATION) // Статус публикации
   // Ответ партнера/продавца на отзыв
   replyComment     String?
   repliedAt        DateTime?
-  // Оценка полезности отзыва другими покупателями (по желанию)
-  likesCount       Int          @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -719,6 +716,7 @@ model PayoutRequest {
 enum NotificationType {
   DEFAULT
   PRODUCT_MODERATION
+  REVIEW_STATUS
 }
 
 model Notification {

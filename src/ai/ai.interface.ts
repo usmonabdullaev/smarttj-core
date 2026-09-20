@@ -2,6 +2,7 @@ export enum AskRequestPurpose {
   SUPPORT = "SUPPORT",
   ANALYTICS = "ANALYTICS",
   PRODUCT_MODERATE = "PRODUCT_MODERATE",
+  REVIEW_MODERATE = "REVIEW_MODERATE",
 }
 
 export enum AskRequestProvider {
