@@ -565,14 +565,14 @@ enum PaymentMethodType {
 }
 
 model PaymentMethod {
-  id        String  @id @default(uuid(7))
-  code      String? @unique // Символьный код: "ALIF_KORTI_MILLI", "ALIF_WALLET", "CASH" (чтобы в коде не хардкодить UUID)
-  name      String
-  provider  String? // Провайдер метода: "ALIF", "CASH", "MANUAL"
-  icon      String? // URL логотипа способа оплаты (иконка кошелька, карты)
-  isActive  Boolean @default(true)
-
-  type      PaymentMethodType
+  id             String  @id @default(uuid(7))
+  code           String? @unique // Символьный код: "ALIF_KORTI_MILLI", "ALIF_WALLET", "CASH" (чтобы в коде не хардкодить UUID)
+  name           String
+  provider       String? // Провайдер метода: "ALIF", "CASH", "MANUAL"
+  commissionRate Float   @default(0) // Процент комиссии шлюза (например, 1.0 для 1%)
+  icon           String? // URL логотипа способа оплаты (иконка кошелька, карты)
+  isActive       Boolean @default(true)
+  type           PaymentMethodType
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -772,17 +772,20 @@ enum TransactionStatus {
 }
 
 model Transaction {
-  id           String            @id @default(uuid(7))
-  userId       String
-  orderId      String            @unique
-  amount       Int
-  status       TransactionStatus @default(SUCCESS)
-  provider     String?
-  providerId   String?
-  paymentGate  String? // Способ оплаты ("korti_milli", "wallet", "salom", "cybersource")
-  payerAccount String? // Маска карты/счета ("622617******1234") для чека покупателю
-  payerPhone   String? // Телефон плательщика из шлюза
-  metadata     Json?   // Полный сырой payload от Alif Callback (RRN, auth code, hash)
+  id               String @id @default(uuid(7))
+  userId           String
+  orderId          String @unique
+  amount           Int                // Полная сумма, списанная с покупателя (например, 100 TJS)
+  commissionRate   Float? @default(0) // Снимок ставки на момент платежа (1.0%)
+  commissionAmount Int?   @default(0) // Удержанная сумма эквайринга (1 TJS)
+  netAmount        Int?               // Чистая сумма, поступившая вам на счет (99 TJS)
+  status           TransactionStatus @default(SUCCESS)
+  provider         String?
+  providerId       String?
+  paymentGate      String? // Способ оплаты ("korti_milli", "wallet", "salom", "cybersource")
+  payerAccount     String? // Маска карты/счета ("622617******1234") для чека покупателю
+  payerPhone       String? // Телефон плательщика из шлюза
+  metadata         Json?   // Полный сырой payload от Alif Callback (RRN, auth code, hash)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
