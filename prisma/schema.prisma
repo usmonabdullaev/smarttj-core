@@ -142,13 +142,22 @@ model Partner {
   address1       String?
   address2       String?
   about          String?
-  inn            String?
-  alifTerminalId String? // ID терминала партнера в Alif (для сплит-платежей Alif Marketplace)
-  bankName       String? // Название банка партнера (для выплат выручки)
-  bankAccount    String? // Расчетный счет (IBAN) партнера
-  bik            String? // БИК / МФО банка
-  cardAccount    String? // Номер карты для выплат (для самозанятых / ИП)
   commissionRate Float   @default(5.0)
+
+  // Реквизиты для выплат выручки
+  inn            String? // ИНН партнёра (организации или ИП)
+  alifTerminalId String? // ID мерчант-терминала в Alif (для сплит-платежей маркетплейса)
+
+  // Выплаты на расчётный счёт (IBAN / юрлица и ИП)
+  bankName    String? // Наименование банка партнёра
+  bankAccount String? // Расчётный счёт партнёра (IBAN, 28 символов)
+  bik         String? // БИК / МФО банка (9 цифр)
+
+  // Ручные выплаты на карты и электронные кошельки
+  cardAccount String? // Номер карты Корти Милли / Visa / Mastercard (16 цифр)
+  cardHolder  String? // ФИО владельца карты (для сверки получателя перед отправкой)
+  cardBank    String? // Банк карты (Alif, Dushanbe City, Eskhata, Ориёнбанк и др.)
+  payoutPhone String? // Номер телефона получателя (для переводов по Alif mobi / DC Next)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -798,12 +807,15 @@ model Transaction {
 }
 
 model SavedCard {
-  id        String  @id @default(uuid(7))
-  userId    String
-  cardToken String  // Токен карты от Alif (для списания)
-  cardMask  String  // Маскированный номер: "444455******1111"
-  cardType  String? // "korti_milli", "visa", "mastercard"
-  isDefault Boolean @default(false)
+  id         String  @id @default(uuid(7))
+  userId     String
+  cardToken  String  @unique // Уникальный токен от Alif для списания (POST /pay/token)
+  cardMask   String  // Маска карты ("444455******1111") или телефона кошелька ("9929****506")
+  cardType   String? // "korti_milli", "visa", "mastercard", "wallet"
+  bankName   String? // Банк-эмитент (если определился: "Alif", "Dushanbe City" и т.д.)
+  expireDate String? // Срок действия "MM/YY" (для контроля истечения перед автоплатежом)
+  isDefault  Boolean @default(false) // Основная карта для автосписаний
+  isActive   Boolean @default(true)  // Активна ли карта (false, если отвязана)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -811,6 +823,7 @@ model SavedCard {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([userId, isDefault])
 }
 
 enum SupportChatStatus {
