@@ -695,21 +695,21 @@ enum PayoutStatus {
 }
 
 model PayoutRequest {
-  id                   String       @id @default(uuid(7))
-  partnerId            String
-  amount               Int          // Запрашиваемая сумма выплаты (в сомони или дирамах)
-  status               PayoutStatus @default(PENDING)
+  id        String       @id @default(uuid(7))
+  partnerId String
+  amount    Int          // Запрашиваемая сумма выплаты (в сомони или дирамах)
+  status    PayoutStatus @default(PENDING)
   
   // Снапшот реквизитов на момент подачи заявки (чтобы сохранить, куда отправлялись деньги, даже если партнёр изменит реквизиты в профиле позже)
-  payoutMethod         String       // "BANK_ACCOUNT" или "CARD"
-  requisitesSnapshot   Json         // { inn, bankName, bankAccount, bik, cardAccount }
+  payoutMethod       String // "BANK_ACCOUNT" или "CARD"
+  requisitesSnapshot Json   // { inn, bankName, bankAccount, bik, cardAccount }
   
-  comment              String?      // Примечание партнёра к заявке
-  rejectReason         String?      // Причина отказа администратором (если REJECTED)
-  transactionReference String?      // Номер платёжного поручения из банка / выписки (при COMPLETED)
-
-  processedById String?      // ID администратора, обработавшего заявку
-  processedAt   DateTime?    // Дата и время обработки
+  comment      String?    // Примечание партнёра к заявке
+  rejectReason String?    // Причина отказа администратором (если REJECTED)
+  checkUrl     String?    // Чек из банка / выписки (при COMPLETED)
+  checkUrlId   String?
+  processedById String?   // ID администратора, обработавшего заявку
+  processedAt   DateTime? // Дата и время обработки
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
